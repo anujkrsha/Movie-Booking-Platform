@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SpotBugs exclusion filter.
+  Add patterns here to suppress false positives or noise from generated code.
+  Reference: https://spotbugs.readthedocs.io/en/stable/filter.html
+-->
+<FindBugsFilter>
+
+  <!-- Ignore all bugs in test classes -->
+  <Match>
+    <Class name="~.*Test$"/>
+  </Match>
+  <Match>
+    <Class name="~.*Tests$"/>
+  </Match>
+  <Match>
+    <Class name="~.*IT$"/>
+  </Match>
+
+  <!-- Lombok-generated equals/hashCode triggers EQ_UNUSUAL — suppress it -->
+  <Match>
+    <Bug pattern="EQ_UNUSUAL"/>
+  </Match>
+
+  <!-- Spring's @Autowired fields appear uninitialized to SpotBugs -->
+  <Match>
+    <Bug pattern="UWF_UNWRITTEN_FIELD,NP_UNWRITTEN_FIELD"/>
+  </Match>
+
+  <!-- MapStruct implementations — safe to ignore -->
+  <Match>
+    <Class name="~.*MapperImpl$"/>
+  </Match>
+
+</FindBugsFilter>

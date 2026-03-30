@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;NON_KEYWORDS=USER
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  data:
+    redis:
+      # Tests use @MockBean for RedisTemplate — no real Redis needed
+      host: localhost
+      port: 6379
+
+# Test RSA keypair (2048-bit, generated for tests only — never use in production)
+# To regenerate:
+#   openssl genrsa -out /tmp/test.pem 2048
+#   openssl pkcs8 -topk8 -inform PEM -outform DER -in /tmp/test.pem -nocrypt | base64 -w0
+#   openssl rsa -in /tmp/test.pem -pubout -outform DER | base64 -w0
+jwt:
+  private-key-base64: ${TEST_JWT_PRIVATE_KEY:MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC7o4qne60TB3wolJ2OTs4gSxXHOkOyNKDRrZqACY0TmfHCYzRscAzq70lR4BSgxXS5CJioL5SmOp5qV3YxkK2+dKMBHCNERlTMCloKcLbN/HVnSiXFXFv3hVsPpbkdErTjFgVFe6VcLlKA88i+o4WkECFGpfMTfBbYO7uo6eK2bPjYXJNzTgQX8KNt2gJXyDkVNpZLDHKMl3R5+IpnmHELMfnGMkiHgxRrv1Sd/DmMvXBXPQ8TyFMW1mujxFIXFNLCexXEcjBbr/0JIPtJE3i4lYk0DJt1ij9VEg8ZZNS1L3yLXl9DKWZ2iQXNOI6R6HGwQJbMO/R0c7YcXMl8M7AgMBAAECggEABdorHJ1D0jGHpNvGvmLSh3sHMjr9uaEqr3eqJ2TMBuWQVnCF6MtlE6u22QX1Sq+5+ldCBn5PiNAJfv1B/VWr4VWMT2q7E/e8cRN3sVlFD0lZjFZ7fhJj4U1U7oFh/w3xB2SH+TYwPi4O7vvJL7oi4I5f6C5tLZ3bZnM9Lv5f5FkbVE9jLTKZT3S4Ej8m4rGPZI3mBEWiVILCjG3NkGGJBHMYzBGeSR0MjHfPGNHb0RiWEDwbPi+X27n0LCWCE4OKjv9MnMFR9JJ9YXgXrGV8o3VXY2E5ydW8ePIbG64fFi4e3YK7A3LpIVdUgqMRsYLv3PdKL1LDOLN1s2AQKBgQDxk8AJa+Rn4X7A8JTovI3z5uqj47q7oI2bGEMmVY8tMJrFLH1/MTrT8hHLQ5k+RYb5x+OtQHlV+3PqWK3OtWKa98Jb4gy4LrYlLQ5T4rlLRj3TJRlKJJhYqX5ZZqH5V6HkjSMHzOPQ5moBZMb1WKqaJC3B7+VNkVCBe1zX1Y5oQKBgQDGhMJRNB6v8JVxfPaxMr8t2Z4E+LJ6o3WRsK0cPLPWINW41dVEPifN9pPaOxL3BLh7v9BOcBzTqQgkCo03VkV2oMRDGMDwqbVpqBkAjVAjolhqXOqZ/Mx0AkWSmVAp1xRNa+MXJJh9VQDIVl5UKLGkR2oy0vlHm4Dv6Hh75CKwxQKBgCjOsPV+Hk9VCT2kGW1m3PEuCw9N6J5D8B7KhMqBO5E9tHW+2OZx4nEJ6x7P9VpCI2Cn0nYlV7gqSV5XMh3nCzjDWUX3EfZxRqHg1Jc5rCvVPFgpV7PBhXiKT6NpJpT25N8RhDFHqv3v3LrpVYT7Q7KIl5VZPJ4NMNkDOVjpAoGAFi0XAtGsJKwBn+S1c5GQNmk/pDUwIVJyS5xJFCZ1bWJFPh4eiFCHFyEdgxfmr3Hf5Gc+Pmy9Qm/IIrSJnF7JVfNrkpYECb9Lm8GjV2YJj9v9D9VCRkAOhlg/B4n0oo1oJCxPcB3FxJZ4HprpXa5C71oBSW1y7lpyOjqVRhKECECgYBvb3zDxPXS2GUFDGzNR0nNFhJumWoVqBTPYj5MdqX3DXfV9PnvM5fWJRpC5ZipHJpz2+kH0zHJIPBbxoVp4GDmq2rMa4TIDa2r9fJZ9TIRm7OPf6nfhPZDqbL3GVHXF3gCbZ3I7SkCbhfP9Ge/ioZ8ZAn3GJWpI5aJG0fYq9MdQ==}
+  public-key-base64:  ${TEST_JWT_PUBLIC_KEY:MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu6OKp3utEwd8KJSdjk7OIEsVxzpDsjSg0a2agAmNE5nxwmM0bHAM6u9JUeAUoMV0uQiYqC+UpjqealV2MZCtvnSjARwjREZUzApaonC2zfx1Z0olxVxb94VbD6W5HRS04xYFRXulXC5SgPPIvqOFpBAhRqXzE3wW2Du7qOnitmz42FyTc04EF/CjbdoCV8g5FTaWSwxyjJd0efqKZ5hxCzH5xjJIh4MUa79Unfw5jL1wVz0PE8hTFtZro8RSFxTSwnsFxHIwW6/9CSD7SRN4uJWJNAybdYo/VRIPGWTUtS98i15fQylmdokFzTiOkegxsECWzDv0dHO2HFzJfDOwIDAQAB}
+  expiration: 900000
+  refresh-expiration: 604800000

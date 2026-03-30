@@ -1,0 +1,188 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+# Cancel in-flight runs for the same ref so stale runs don't waste minutes
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: "17"
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  # ────────────────────────────────────────────────────────────────
+  # 1. BUILD & TEST
+  # ────────────────────────────────────────────────────────────────
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Build and run all tests
+        working-directory: booking-platform
+        run: mvn clean verify --batch-mode --no-transfer-progress -T 1C
+
+      - name: Upload Surefire test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: |
+            booking-platform/**/target/surefire-reports/
+            booking-platform/**/target/failsafe-reports/
+          retention-days: 7
+
+      - name: Upload JARs (used by docker-build job)
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-jars
+          path: booking-platform/services/*/target/*-SNAPSHOT.jar
+          retention-days: 1
+
+  # ────────────────────────────────────────────────────────────────
+  # 2. CODE QUALITY — Checkstyle + SpotBugs
+  # ────────────────────────────────────────────────────────────────
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Run Checkstyle (Google style)
+        working-directory: booking-platform
+        run: |
+          mvn checkstyle:check \
+            --batch-mode --no-transfer-progress \
+            -Dcheckstyle.config.location=google_checks.xml \
+            -Dcheckstyle.failOnViolation=true \
+            -Dcheckstyle.violationSeverity=warning
+
+      - name: Run SpotBugs
+        working-directory: booking-platform
+        run: |
+          mvn spotbugs:check \
+            --batch-mode --no-transfer-progress \
+            -Dspotbugs.effort=Max \
+            -Dspotbugs.threshold=Medium \
+            -Dspotbugs.failOnError=true
+
+      - name: Upload Checkstyle reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkstyle-reports
+          path: booking-platform/**/target/checkstyle-result.xml
+          retention-days: 7
+
+      - name: Upload SpotBugs reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spotbugs-reports
+          path: booking-platform/**/target/spotbugsXml.xml
+          retention-days: 7
+
+  # ────────────────────────────────────────────────────────────────
+  # 3. DOCKER BUILD & PUSH  (main branch only)
+  # ────────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker — ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: [build-and-test, code-quality]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    permissions:
+      contents: read
+      packages: write   # needed to push to ghcr.io
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: user-service
+            port: 8081
+          - service: movie-service
+            port: 8082
+          - service: theatre-service
+            port: 8083
+          - service: show-service
+            port: 8084
+          - service: booking-service
+            port: 8085
+          - service: payment-service
+            port: 8086
+          - service: offer-service
+            port: 8087
+          - service: search-service
+            port: 8088
+          - service: notification-service
+            port: 8089
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download JARs from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: service-jars
+          path: booking-platform/services
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata (tags & labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: booking-platform/services/${{ matrix.service }}
+          file: booking-platform/services/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          build-args: |
+            SERVICE_PORT=${{ matrix.port }}

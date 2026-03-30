@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: movie-service
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/moviedb}
+    username: ${DB_USERNAME:booking}
+    password: ${DB_PASSWORD:booking}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: update          # use 'validate' + Flyway migrations in production
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Redis — used for the MOVIE:{id} cache (1-hour TTL)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+
+  # Elasticsearch — movie search index
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URI:http://localhost:9200}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
+    connection-timeout: 5s
+    socket-timeout: 30s
+
+server:
+  port: 8082
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# RS256 public key for JWT validation (private key NOT needed in this service)
+jwt:
+  public-key-base64: ${JWT_PUBLIC_KEY}
+  private-key-base64: ${JWT_PRIVATE_KEY:}
+  expiration: 900000
+  refresh-expiration: 604800000
+
+# Daily ES sync cron — 02:00 UTC every day (overridable)
+movie:
+  sync:
+    cron: "0 0 2 * * *"
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    com.booking: DEBUG
+    org.springframework.data.elasticsearch: INFO
